@@ -1,0 +1,107 @@
+---
+- hosts: all
+  gather_facts: yes
+
+  tasks:
+    - name: Get the MAC address
+      debug: msg="{{ hostvars[inventory_hostname]['ansible_ens224']['macaddress'] }}"
+    - name: Disable SWAP as it needs to be disbled for Kubernetes
+      shell: |
+        swapoff -a
+    - name: Disable SWAP on boot.
+      replace:
+        path: /etc/fstab
+        regexp: '^(.*?\sswap\s+.*)$'
+        replace: '# \1'
+    - name: Install YUM Utils
+      yum:
+        name: yum-utils
+        state: latest
+    - name: Install EPEL
+      yum:
+        name:
+          - epel-release
+        state: latest
+    - name: Install Python PIP/Wheel
+      yum:
+        name:
+          - python-wheel
+          - python-pip
+        state: latest
+    - name: Disable SELinux
+      selinux:
+        state: disabled
+    - name: Stop firewalld
+      systemd:
+        name: firewalld
+        state: stopped
+        enabled: no
+    - name: Enable IP forwarding
+      shell: |
+        echo "net.bridge.bridge-nf-call-ip6tables=1" >> /etc/sysctl.conf
+        echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+        echo "net.bridge.bridge-nf-call-iptables=1" >> /etc/sysctl.conf
+    - name: Create uplink interface
+      copy:
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{etherdev}}"
+        content: |
+          DEVICE={{etherdev}}
+          HWADDR=
+          IPV6INIT=no
+          NAME={{etherdev}}
+          ONBOOT=yes
+          MTU=9000
+    - name: Create OpFlex sub-interface on uplink
+      copy:
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{etherdev}}.{{aci_infra_vlan}}"
+        content: |
+          PERSISTENT_DHCLIENT=1
+          DHCPRELEASE=1
+          DEVICE={{etherdev}}.{{aci_infra_vlan}}
+          ONBOOT=yes
+          PEERDNS=yes
+          NM_CONTROLLED=no
+          HWADDR=`ip link show {{etherdev}} | awk '/ether/ {print $2}'`
+          TYPE=Ethernet
+          BOOTPROTO=dhcp
+          VLAN=yes
+          ONPARENT=yes
+          MTU=1600
+    - name: Add routes via the sub-interface
+      copy:
+        dest: "/etc/sysconfig/network-scripts/route-{{etherdev}}.{{aci_infra_vlan}}"
+        content: |
+          ADDRESS0=224.0.0.0
+          NETMASK0=240.0.0.0
+          INTERFACE={{etherdev}}.{{aci_infra_vlan}}
+          METRIC0=0
+    - name: Add Sub-interface DHCP options
+      copy:
+        dest: "/etc/dhcp/dhclient-{{etherdev}}.{{aci_infra_vlan}}.conf"
+        content: |
+          send dhcp-client-identifier 01:{{ hostvars[inventory_hostname]['ansible_ens224']['macaddress'] }};
+          request subnet-mask, domain-name, domain-name-servers, host-name;
+          send host-name `hostname | cut -d "." -f 1`;
+
+          option rfc3442-classless-static-routes code 121 = array of unsigned integer 8;
+          option ms-classless-static-routes code 249 = array of unsigned integer 8;
+          option wpad code 252 = string;
+
+          also request rfc3442-classless-static-routes;
+          also request ms-classless-static-routes;
+          also request static-routes;
+          also request wpad;
+          also request ntp-servers;
+    - name: Create sub-interface for Kubernetes Node INFRA
+      copy:
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{etherdev}}.{{node_net_vlan}}"
+        content: |
+          DEVICE={{etherdev}}.{{node_net_vlan}}
+          IPADDR={{node_net_ip}}
+          PREFIX={{node_net_prefix}}
+          ONBOOT=yes
+          PEERDNS=yes
+          NM_CONTROLLED=no
+          VLAN=yes
+          ONPARENT=yes
+          MTU=9000
