@@ -61,7 +61,7 @@
           ONBOOT=yes
           PEERDNS=yes
           NM_CONTROLLED=no
-          HWADDR=`ip link show {{etherdev}} | awk '/ether/ {print $2}'`
+          HWADDR="{{ hostvars[inventory_hostname]['ansible_ens224']['macaddress'] }}"
           TYPE=Ethernet
           BOOTPROTO=dhcp
           VLAN=yes
@@ -81,7 +81,7 @@
         content: |
           send dhcp-client-identifier 01:{{ hostvars[inventory_hostname]['ansible_ens224']['macaddress'] }};
           request subnet-mask, domain-name, domain-name-servers, host-name;
-          send host-name `hostname | cut -d "." -f 1`;
+          send host-name {{ hostvars[inventory_hostname]['ansible_hostname'] }};
 
           option rfc3442-classless-static-routes code 121 = array of unsigned integer 8;
           option ms-classless-static-routes code 249 = array of unsigned integer 8;
