@@ -51,7 +51,7 @@
           NAME={{etherdev}}
           ONBOOT=yes
           MTU=9000
-    - name: Create OpFlex sub-interface on uplink
+    - name: Create OpFlex sub-interface for ACI Infra
       copy:
         dest: "/etc/sysconfig/network-scripts/ifcfg-{{etherdev}}.{{aci_infra_vlan}}"
         content: |
@@ -67,7 +67,7 @@
           VLAN=yes
           ONPARENT=yes
           MTU=1600
-    - name: Add routes via the sub-interface
+    - name: Add Multicast routes via the ACI Infra sub-interface
       copy:
         dest: "/etc/sysconfig/network-scripts/route-{{etherdev}}.{{aci_infra_vlan}}"
         content: |
@@ -92,7 +92,7 @@
           also request static-routes;
           also request wpad;
           also request ntp-servers;
-    - name: Create sub-interface for Kubernetes Node INFRA
+    - name: Create sub-interface for Kubernetes Node Infra/API inter-node traffic
       copy:
         dest: "/etc/sysconfig/network-scripts/ifcfg-{{etherdev}}.{{node_net_vlan}}"
         content: |
@@ -105,3 +105,36 @@
           VLAN=yes
           ONPARENT=yes
           MTU=9000
+    - name: Add static route for Kubernetes Node Infra/API inter-node traffic
+      copy:
+        dest: "/etc/sysconfig/network-scripts/route-{{etherdev}}.{{node_net_vlan}}"
+        content: |
+          ADDRESS0={{route_address}}
+          NETMASK0={{route_netmask}}
+          GATEWAY0={{route_gateway}}
+    - name: Add Docker-CE repository
+      shell: |
+        yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    - name: Add Kubernetes Repositories
+      yum_repository:
+        name: kubernetes
+        description: Kubernetes package repository
+        baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+        gpgcheck: yes
+        gpgkey:
+          - https://packages.cloud.google.com/yum/doc/yum-key.gpg
+          - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+    - name: Update repository caches
+      command:
+        cmd: yum -y makecache fast
+        warn: false
+    - name: Install Docker-CE with specific version
+      yum:
+        name: {{docker_ce_version}}
+        update_cache: yes
+        state: present
+    - name: Start/Enable docker-ce
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
