@@ -158,3 +158,8 @@
         name: "{{k8s_adm_version}}"
         state: present
         update_cache: no
+    - name: Start/Enable Kubernetes KubeLet
+      systemd:
+        name: kubelet
+        state: started
+        enabled: yes
