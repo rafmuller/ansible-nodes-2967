@@ -130,7 +130,7 @@
         warn: false
     - name: Install Docker-CE with specific version
       yum:
-        name: {{docker_ce_version}}
+        name: "{{docker_ce_version}}"
         update_cache: yes
         state: present
     - name: Start/Enable docker-ce
@@ -140,21 +140,21 @@
         enabled: yes
     - name: Install Kubernetes CNI
       yum:
-        name: {{k8s_cni_version}}
+        name: "{{k8s_cni_version}}"
         state: present
         update_cache: no
     - name: Install Kubernetes CTL
       yum:
-        name: {{k8s_ctl_version}}
+        name: "{{k8s_ctl_version}}"
         state: present
         update_cache: no
     - name: Install Kubernetes KubeLet
       yum:
-        name: {{k8s_let_version}}
+        name: "{{k8s_let_version}}"
         state: present
         update_cache: no
     - name: Install Kubernetes Admin
       yum:
-        name: {{k8s_adm_version}}
+        name: "{{k8s_adm_version}}"
         state: present
         update_cache: no
