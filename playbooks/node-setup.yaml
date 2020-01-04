@@ -128,11 +128,46 @@
       command:
         cmd: yum -y makecache fast
         warn: false
+    - name: Create docker configuration directory in etc
+      file:
+        path: /etc/docker
+        state: directory
+        owner: root
+        group: root
+        mode: 0775
+    - name: Create docker configuration file
+      copy:
+        dest: "/etc/docker/daemon.json"
+        content: |
+          {
+            "exec-opts": ["native.cgroupdriver=systemd"],
+            "log-driver": "json-file",
+            "log-opts": {
+                "max-size": "100m"
+              },
+            "storage-driver": "overlay2",
+            "storage-opts": [
+              "overlay2.override_kernel_check=true"
+            ]
+          }
     - name: Install Docker-CE with specific version
       yum:
         name: "{{docker_ce_version}}"
         update_cache: yes
         state: present
+        allow_downgrade: yes
+    - name: Install Docker-CE-CLI with specific version
+      yum:
+        name: "{{docker_ce_cli_version}}"
+        update_cache: yes
+        state: present
+        allow_downgrade: yes
+     - name: Install containerd with specific version
+      yum:
+        name: "{{containerd_io_version}}"
+        update_cache: yes
+        state: present
+        allow_downgrade: yes
     - name: Start/Enable docker-ce
       systemd:
         name: docker
@@ -143,21 +178,25 @@
         name: "{{k8s_cni_version}}"
         state: present
         update_cache: no
+        allow_downgrade: yes
     - name: Install Kubernetes CTL
       yum:
         name: "{{k8s_ctl_version}}"
         state: present
         update_cache: no
+        allow_downgrade: yes
     - name: Install Kubernetes KubeLet
       yum:
         name: "{{k8s_let_version}}"
         state: present
         update_cache: no
+        allow_downgrade: yes
     - name: Install Kubernetes Admin
       yum:
         name: "{{k8s_adm_version}}"
         state: present
         update_cache: no
+        allow_downgrade: yes
     - name: Start/Enable Kubernetes KubeLet
       systemd:
         name: kubelet
