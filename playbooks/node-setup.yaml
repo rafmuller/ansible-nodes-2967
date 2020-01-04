@@ -162,7 +162,7 @@
         update_cache: yes
         state: present
         allow_downgrade: yes
-     - name: Install containerd with specific version
+    - name: Install containerd with specific version
       yum:
         name: "{{containerd_io_version}}"
         update_cache: yes
